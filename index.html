@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ساعة المسجد ومواقيت الصلاة</title>
+<style>
+  :root{
+    --bg1:#03130f;
+    --bg2:#0b3d33;
+    --gold:#e8c468;
+    --gold-dim:#b89a52;
+    --cream:#f6efe0;
+    --cream-dim:#c9c2ae;
+    --glow:0 0 24px rgba(232,196,104,.55);
+    --card-bg:rgba(255,255,255,.05);
+    --card-border:rgba(232,196,104,.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    background:
+      radial-gradient(ellipse at 50% -10%, #124a3e 0%, transparent 60%),
+      linear-gradient(180deg,var(--bg1),var(--bg2) 60%,var(--bg1));
+    color:var(--cream);
+    font-family:"Tahoma","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:"";
+    position:fixed;inset:0;pointer-events:none;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(232,196,104,.025) 0 2px, transparent 2px 40px),
+      repeating-linear-gradient(-45deg, rgba(232,196,104,.025) 0 2px, transparent 2px 40px);
+    opacity:.6;
+  }
+
+  .arch-decor{
+    position:fixed; top:0; left:50%; transform:translateX(-50%);
+    width:min(70vw,900px); height:38vh; pointer-events:none; opacity:.12;
+    z-index:0;
+  }
+
+  .screen{
+    position:relative; z-index:1;
+    width:100vw; height:100vh;
+    display:flex; flex-direction:column; align-items:center;
+    padding: 3vh 4vw 2vh;
+  }
+
+  header.top{
+    text-align:center; flex:0 0 auto; margin-bottom:1vh;
+  }
+  header.top .mosque-name{
+    font-size:clamp(1.4rem,3vw,2.6rem);
+    color:var(--gold);
+    text-shadow:var(--glow);
+    font-weight:700;
+  }
+  header.top .city{
+    font-size:clamp(.85rem,1.3vw,1.2rem);
+    color:var(--cream-dim);
+    letter-spacing:.05em;
+    margin-top:.3vh;
+  }
+
+  .slides{
+    position:relative;
+    flex:1 1 auto;
+    width:100%;
+    max-width:1400px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .slide{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    opacity:0; transform:translateX(40px) scale(.98);
+    transition:opacity .7s ease, transform .7s ease;
+    pointer-events:none;
+  }
+  .slide.active{
+    opacity:1; transform:translateX(0) scale(1);
+    pointer-events:auto;
+  }
+
+  /* ---- Clock slide ---- */
+  .clock-time{
+    font-size:clamp(4.5rem,15vw,11rem);
+    font-weight:700;
+    line-height:1;
+    letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;
+    text-shadow:0 0 40px rgba(232,196,104,.25);
+  }
+  .clock-time .ampm{
+    font-size:.28em;
+    color:var(--gold);
+    margin-right:.3vw;
+    vertical-align:middle;
+    font-weight:600;
+  }
+  .clock-time .colon{ animation:blink 2s steps(1) infinite; color:var(--gold); }
+  @keyframes blink{ 50%{ opacity:.25; } }
+
+  .clock-dates{
+    margin-top:1.5vh;
+    display:flex; gap:2.2vw; flex-wrap:wrap; justify-content:center;
+    font-size:clamp(1rem,1.9vw,1.5rem);
+    color:var(--cream-dim);
+  }
+  .clock-dates .hijri{ color:var(--gold); }
+
+  .next-prayer-pill{
+    margin-top:3vh;
+    display:flex; align-items:center; gap:.8em;
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:100px;
+    padding:.8em 1.8em;
+    font-size:clamp(1rem,1.9vw,1.4rem);
+    box-shadow:var(--glow);
+  }
+  .next-prayer-pill .label{ color:var(--cream-dim); }
+  .next-prayer-pill .name{ color:var(--gold); font-weight:700; }
+  .next-prayer-pill .countdown{ color:var(--cream); font-variant-numeric:tabular-nums; }
+
+  /* ---- Prayer table slide ---- */
+  .prayer-title{
+    font-size:clamp(1.3rem,2.6vw,2.2rem);
+    color:var(--gold);
+    margin-bottom:2.5vh;
+    text-align:center;
+    font-weight:700;
+  }
+  .prayer-grid{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:1.2vw;
+    width:100%;
+  }
+  .prayer-card{
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:18px;
+    padding:2.2vh 1vw;
+    text-align:center;
+    transition:box-shadow .4s, transform .4s, background .4s;
+  }
+  .prayer-card .name{
+    font-size:clamp(1rem,1.6vw,1.4rem);
+    color:var(--cream-dim);
+    margin-bottom:1vh;
+    font-weight:600;
+  }
+  .prayer-card .time{
+    font-size:clamp(1.4rem,2.6vw,2.1rem);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    color:var(--cream);
+  }
+  .prayer-card .iqama{
+    margin-top:1vh;
+    font-size:clamp(.75rem,1.1vw,.95rem);
+    color:var(--gold-dim);
+  }
+  .prayer-card.next{
+    background:rgba(232,196,104,.12);
+    border-color:var(--gold);
+    box-shadow:var(--glow);
+    transform:translateY(-6px);
+  }
+  .prayer-card.next .name{ color:var(--gold); }
+  .prayer-card.next .time{ color:var(--gold); }
+
+  .mini-clock{
+    margin-top:3.5vh;
+    font-size:clamp(1.4rem,2.8vw,2.3rem);
+    font-variant-numeric:tabular-nums;
+    color:var(--cream-dim);
+  }
+  .mini-clock .ampm{ color:var(--gold); font-size:.6em; margin-right:.3em; }
+
+  /* ---- indicators ---- */
+  .dots{
+    flex:0 0 auto;
+    display:flex; gap:.6em; margin-top:1.5vh;
+  }
+  .dots span{
+    width:.6em; height:.6em; border-radius:50%;
+    background:rgba(255,255,255,.2);
+    transition:background .3s, transform .3s;
+  }
+  .dots span.active{ background:var(--gold); transform:scale(1.3); }
+
+  /* ---- controls ---- */
+  .controls{
+    position:fixed; bottom:1.4vh; left:1.6vw;
+    display:flex; gap:.7em; z-index:5;
+  }
+  .icon-btn{
+    width:2.6em; height:2.6em; border-radius:50%;
+    border:1px solid rgba(232,196,104,.3);
+    background:rgba(0,0,0,.25);
+    color:var(--gold-dim);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; opacity:.25; transition:opacity .3s,color .3s,background .3s;
+    font-size:1.15rem;
+  }
+  .icon-btn:hover{ opacity:1; color:var(--gold); background:rgba(0,0,0,.5); }
+
+  /* ---- modal ---- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.6);
+    display:none; align-items:center; justify-content:center; z-index:10;
+    backdrop-filter:blur(3px);
+  }
+  .overlay.show{ display:flex; }
+  .modal{
+    width:min(640px,92vw); max-height:88vh; overflow-y:auto;
+    background:linear-gradient(180deg,#0e2e26,#0a2019);
+    border:1px solid var(--card-border);
+    border-radius:16px; padding:2em 2.2em;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .modal h2{
+    color:var(--gold); margin:0 0 .2em; font-size:1.4rem;
+  }
+  .modal .sub{ color:var(--cream-dim); font-size:.85rem; margin-bottom:1.2em; }
+  .modal fieldset{
+    border:1px solid rgba(232,196,104,.25); border-radius:10px;
+    margin-bottom:1.2em; padding:.9em 1.1em 1.1em;
+  }
+  .modal legend{ color:var(--gold); padding:0 .5em; font-size:.9rem; font-weight:600; }
+  .field-row{ display:flex; gap:.8em; flex-wrap:wrap; margin-bottom:.6em; }
+  .field{ flex:1 1 140px; display:flex; flex-direction:column; gap:.3em; }
+  .field label{ font-size:.78rem; color:var(--cream-dim); }
+  .field input, .field select{
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
+    color:var(--cream); border-radius:8px; padding:.5em .6em; font-size:.95rem;
+    font-family:inherit;
+  }
+  .field input:focus, .field select:focus{ outline:1px solid var(--gold); }
+  .iqama-row{ display:grid; grid-template-columns:1fr 100px; gap:.6em; align-items:center; margin-bottom:.5em; }
+  .iqama-row span{ font-size:.85rem; color:var(--cream-dim); }
+  .modal-actions{ display:flex; justify-content:space-between; align-items:center; gap:.8em; margin-top:1.2em; }
+  .btn{
+    border:none; border-radius:8px; padding:.7em 1.4em; font-size:.9rem; cursor:pointer;
+    font-family:inherit; font-weight:600;
+  }
+  .btn.primary{ background:var(--gold); color:#1c1406; }
+  .btn.primary:hover{ background:#f0d488; }
+  .btn.ghost{ background:transparent; color:var(--cream-dim); border:1px solid rgba(255,255,255,.2); }
+  .btn.ghost:hover{ color:var(--cream); border-color:var(--cream-dim); }
+  .locate-row{ display:flex; align-items:center; gap:.6em; }
+  .status-msg{ font-size:.78rem; color:var(--gold-dim); min-height:1.2em; }
+
+  @media (max-width:900px){
+    .prayer-grid{ grid-template-columns:repeat(3,1fr); row-gap:1.4vh; }
+  }
+  @media (max-width:520px){
+    .prayer-grid{ grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<svg class="arch-decor" viewBox="0 0 400 200" preserveAspectRatio="xMidYMin meet">
+  <path d="M0,200 L0,80 Q200,-40 400,80 L400,200 Z" fill="none" stroke="#e8c468" stroke-width="2"/>
+</svg>
+
+<div class="screen">
+  <header class="top">
+    <div class="mosque-name" id="mosqueName">المسجد</div>
+    <div class="city" id="cityLabel">حدد موقعك من الإعدادات</div>
+  </header>
+
+  <div class="slides">
+    <section class="slide" id="slideClock">
+      <div class="clock-time" id="clockTime">--<span class="colon">:</span>--<span class="ampm" id="clockAmPm"></span></div>
+      <div class="clock-dates">
+        <div class="gregorian" id="gregDate">-</div>
+        <div class="hijri" id="hijriDate">-</div>
+      </div>
+      <div class="next-prayer-pill">
+        <span class="label">التالي:</span>
+        <span class="name" id="nextName">-</span>
+        <span class="countdown" id="nextCountdown">-</span>
+      </div>
+    </section>
+
+    <section class="slide" id="slidePrayers">
+      <div class="prayer-title">مواقيت الصلاة اليوم</div>
+      <div class="prayer-grid" id="prayerGrid"></div>
+      <div class="mini-clock" id="miniClock">--:--<span class="ampm" id="miniAmPm"></span></div>
+    </section>
+  </div>
+
+  <div class="dots" id="dots">
+    <span class="active" data-i="0"></span>
+    <span data-i="1"></span>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="icon-btn" id="fsBtn" title="ملء الشاشة">⛶</button>
+  <button class="icon-btn" id="settingsBtn" title="الإعدادات">⚙</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>إعدادات العرض</h2>
+    <div class="sub">يتم حساب مواقيت الصلاة تلقائيًا حسب موقعك. يمكنك ضبط أي شيء أدناه.</div>
+
+    <fieldset>
+      <legend>عام</legend>
+      <div class="field-row">
+        <div class="field">
+          <label>اسم المسجد</label>
+          <input type="text" id="inMosqueName" placeholder="مسجد النور">
+        </div>
+        <div class="field">
+          <label>المدينة / الموقع</label>
+          <input type="text" id="inCityLabel" placeholder="مثال: الرياض، السعودية">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>تنسيق الوقت</label>
+          <select id="inTimeFormat">
+            <option value="12">12 ساعة</option>
+            <option value="24">24 ساعة</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>مدة عرض الشريحة (بالثواني)</label>
+          <input type="number" id="inInterval" min="3" max="120" step="1">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>الموقع الجغرافي وطريقة الحساب</legend>
+      <div class="locate-row field-row">
+        <div class="field">
+          <label>خط العرض</label>
+          <input type="number" id="inLat" step="0.0001" placeholder="24.7136">
+        </div>
+        <div class="field">
+          <label>خط الطول</label>
+          <input type="number" id="inLon" step="0.0001" placeholder="46.6753">
+        </div>
+        <button class="btn ghost" id="locateBtn" style="align-self:flex-end;">تحديد موقعي</button>
+      </div>
+      <div class="status-msg" id="locateStatus"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>طريقة الحساب</label>
+          <select id="inMethod">
+            <option value="MWL">رابطة العالم الإسلامي</option>
+            <option value="ISNA">الجمعية الإسلامية لأمريكا الشمالية</option>
+            <option value="Egypt">الهيئة المصرية العامة للمساحة</option>
+            <option value="Makkah">أم القرى، مكة المكرمة</option>
+            <option value="Karachi">جامعة العلوم الإسلامية، كراتشي</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>حساب صلاة العصر</label>
+          <select id="inAsr">
+            <option value="1">الجمهور (الشافعي، المالكي، الحنبلي)</option>
+            <option value="2">الحنفي</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>فارق وقت الإقامة (بالدقائق بعد الأذان)</legend>
+      <div class="iqama-row"><span>الفجر</span><input type="number" id="iqFajr" min="0" max="60"></div>
+      <div class="iqama-row"><span>الظهر</span><input type="number" id="iqDhuhr" min="0" max="60"></div>
+      <div class="iqama-row"><span>العصر</span><input type="number" id="iqAsr" min="0" max="60"></div>
+      <div class="iqama-row"><span>المغرب</span><input type="number" id="iqMaghrib" min="0" max="60"></div>
+      <div class="iqama-row"><span>العشاء</span><input type="number" id="iqIsha" min="0" max="60"></div>
+    </fieldset>
+
+    <div class="modal-actions">
+      <button class="btn ghost" id="closeBtn">إغلاق</button>
+      <button class="btn primary" id="saveBtn">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Settings ---------------- */
+  var DEFAULTS = {
+    mosqueName:"المسجد",
+    cityLabel:"حدد موقعك من الإعدادات",
+    timeFormat:"12",
+    interval:10,
+    lat:21.4225,
+    lon:39.8262,
+    method:"MWL",
+    asr:"1",
+    iqama:{ Fajr:20, Dhuhr:10, Asr:10, Maghrib:5, Isha:10 }
+  };
+
+  function loadSettings(){
+    try{
+      var raw = localStorage.getItem("mosqueClockSettings");
+      if(!raw) return JSON.parse(JSON.stringify(DEFAULTS));
+      var s = JSON.parse(raw);
+      return Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), s, {
+        iqama: Object.assign({}, DEFAULTS.iqama, s.iqama || {})
+      });
+    }catch(e){ return JSON.parse(JSON.stringify(DEFAULTS)); }
+  }
+  function saveSettings(s){
+    localStorage.setItem("mosqueClockSettings", JSON.stringify(s));
+  }
+
+  var settings = loadSettings();
+
+  /* ---------------- Prayer time calculation ---------------- */
+  /* Standard solar-position based method (NOAA solar geometry),
+     angles per calculation society. Accuracy ~1 minute. */
+
+  var METHOD_ANGLES = {
+    MWL:    { fajr:18,   isha:17,   ishaMinutes:null },
+    ISNA:   { fajr:15,   isha:15,   ishaMinutes:null },
+    Egypt:  { fajr:19.5, isha:17.5, ishaMinutes:null },
+    Makkah: { fajr:18.5, isha:null, ishaMinutes:90 },
+    Karachi:{ fajr:18,   isha:18,   ishaMinutes:null }
+  };
+
+  function deg2rad(d){ return d*Math.PI/180; }
+  function rad2deg(r){ return r*180/Math.PI; }
+
+  function julianDay(y,m,d){
+    if(m<=2){ y-=1; m+=12; }
+    var A = Math.floor(y/100);
+    var B = 2 - A + Math.floor(A/4);
+    return Math.floor(365.25*(y+4716)) + Math.floor(30.6001*(m+1)) + d + B - 1524.5;
+  }
+
+  function sunPosition(jdNoonUTC){
+    var T = (jdNoonUTC - 2451545.0) / 36525;
+    var L0 = (280.46646 + T*(36000.76983 + T*0.0003032)) % 360;
+    if(L0<0) L0+=360;
+    var M = 357.52911 + T*(35999.05029 - 0.0001537*T);
+    var e = 0.016708634 - T*(0.000042037 + 0.0000001267*T);
+    var Mrad = deg2rad(M);
+    var C = Math.sin(Mrad)*(1.914602 - T*(0.004817+0.000014*T))
+          + Math.sin(2*Mrad)*(0.019993-0.000101*T)
+          + Math.sin(3*Mrad)*0.000289;
+    var trueLong = L0 + C;
+    var omega = 125.04 - 1934.136*T;
+    var appLong = trueLong - 0.00569 - 0.00478*Math.sin(deg2rad(omega));
+    var meanObliq = 23 + (26 + ((21.448 - T*(46.815+T*(0.00059-T*0.001813))))/60)/60;
+    var obliqCorr = meanObliq + 0.00256*Math.cos(deg2rad(omega));
+    var decl = rad2deg(Math.asin(Math.sin(deg2rad(obliqCorr))*Math.sin(deg2rad(appLong))));
+
+    var y = Math.pow(Math.tan(deg2rad(obliqCorr)/2),2);
+    var eqTime = 4*rad2deg(
+      y*Math.sin(2*deg2rad(L0))
+      - 2*e*Math.sin(Mrad)
+      + 4*e*y*Math.sin(Mrad)*Math.cos(2*deg2rad(L0))
+      - 0.5*y*y*Math.sin(4*deg2rad(L0))
+      - 1.25*e*e*Math.sin(2*Mrad)
+    );
+    return { decl:decl, eqTime:eqTime };
+  }
+
+  function hourAngle(lat, decl, altitude){
+    var latR = deg2rad(lat), declR = deg2rad(decl), altR = deg2rad(altitude);
+    var cosH = (Math.sin(altR) - Math.sin(latR)*Math.sin(declR)) / (Math.cos(latR)*Math.cos(declR));
+    cosH = Math.max(-1, Math.min(1, cosH));
+    return rad2deg(Math.acos(cosH));
+  }
+
+  function asrAltitude(lat, decl, factor){
+    var diff = Math.abs(lat - decl);
+    var t = factor + Math.tan(deg2rad(diff));
+    return rad2deg(Math.atan(1/t));
+  }
+
+  function computePrayerTimes(date, lat, lon, methodKey, asrFactor){
+    var m = METHOD_ANGLES[methodKey] || METHOD_ANGLES.MWL;
+    var jdNoon = julianDay(date.getFullYear(), date.getMonth()+1, date.getDate()) + 0.5;
+    var sp = sunPosition(jdNoon);
+    var decl = sp.decl, eqTime = sp.eqTime;
+
+    var tzOffsetHours = -date.getTimezoneOffset()/60;
+    var solarNoon = 12 - lon/15 - eqTime/60 + tzOffsetHours;
+
+    var hFajr = hourAngle(lat, decl, -m.fajr);
+    var hRise = hourAngle(lat, decl, -0.833);
+    var hAsr = hourAngle(lat, decl, asrAltitude(lat, decl, asrFactor));
+
+    var fajr = solarNoon - hFajr/15;
+    var sunrise = solarNoon - hRise/15;
+    var dhuhr = solarNoon + 1/60;
+    var asr = solarNoon + hAsr/15;
+    var maghrib = solarNoon + hRise/15;
+
+    var isha;
+    if(m.ishaMinutes){
+      isha = maghrib + m.ishaMinutes/60;
+    } else {
+      var hIsha = hourAngle(lat, decl, -m.isha);
+      isha = solarNoon + hIsha/15;
+    }
+
+    return { Fajr:fajr, Sunrise:sunrise, Dhuhr:dhuhr, Asr:asr, Maghrib:maghrib, Isha:isha };
+  }
+
+  function hoursToDate(baseDate, hoursFloat){
+    var d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+    var totalMinutes = Math.round(hoursFloat*60);
+    d.setMinutes(d.getMinutes() + totalMinutes);
+    return d;
+  }
+
+  /* ---------------- Hijri date (tabular / Kuwaiti algorithm, approximate) ---------------- */
+  var HIJRI_MONTHS = ["محرم","صفر","ربيع الأول","ربيع الآخر","جمادى الأولى",
+    "جمادى الآخرة","رجب","شعبان","رمضان","شوال","ذو القعدة","ذو الحجة"];
+
+  function gregorianToHijri(date){
+    var day = date.getDate(), month = date.getMonth()+1, year = date.getFullYear();
+    var jd = Math.floor((1461*(year+4800+Math.floor((month-14)/12)))/4)
+      + Math.floor((367*(month-2-12*Math.floor((month-14)/12)))/12)
+      - Math.floor((3*Math.floor((year+4900+Math.floor((month-14)/12))/100))/4)
+      + day - 32075;
+    var l = jd - 1948440 + 10632;
+    var n = Math.floor((l-1)/10631);
+    l = l - 10631*n + 354;
+    var j = Math.floor((10985-l)/5316)*Math.floor((50*l)/17719) + Math.floor(l/5670)*Math.floor((43*l)/15238);
+    l = l - Math.floor((30-j)/15)*Math.floor((17719*j)/50) - Math.floor(j/16)*Math.floor((15238*j)/43) + 29;
+    var hMonth = Math.floor((24*l)/709);
+    var hDay = l - Math.floor((709*hMonth)/24);
+    var hYear = 30*n + j - 30;
+    return { day:hDay, month:hMonth, year:hYear };
+  }
+
+  /* ---------------- App state ---------------- */
+  var els = {
+    mosqueName: document.getElementById("mosqueName"),
+    cityLabel: document.getElementById("cityLabel"),
+    clockTime: document.getElementById("clockTime"),
+    clockAmPm: document.getElementById("clockAmPm"),
+    gregDate: document.getElementById("gregDate"),
+    hijriDate: document.getElementById("hijriDate"),
+    nextName: document.getElementById("nextName"),
+    nextCountdown: document.getElementById("nextCountdown"),
+    prayerGrid: document.getElementById("prayerGrid"),
+    miniClock: document.getElementById("miniClock"),
+    miniAmPm: document.getElementById("miniAmPm"),
+    slideClock: document.getElementById("slideClock"),
+    slidePrayers: document.getElementById("slidePrayers"),
+    dots: document.querySelectorAll("#dots span"),
+    overlay: document.getElementById("overlay"),
+    settingsBtn: document.getElementById("settingsBtn"),
+    closeBtn: document.getElementById("closeBtn"),
+    saveBtn: document.getElementById("saveBtn"),
+    fsBtn: document.getElementById("fsBtn"),
+    locateBtn: document.getElementById("locateBtn"),
+    locateStatus: document.getElementById("locateStatus")
+  };
+
+  var PRAYER_ORDER = ["Fajr","Sunrise","Dhuhr","Asr","Maghrib","Isha"];
+  var IQAMA_KEYS = ["Fajr","Dhuhr","Asr","Maghrib","Isha"];
+  var PRAYER_NAMES_AR = { Fajr:"الفجر", Sunrise:"الشروق", Dhuhr:"الظهر", Asr:"العصر", Maghrib:"المغرب", Isha:"العشاء" };
+
+  var todayTimes = null;
+  var todayKey = "";
+  var todayDateObjs = {};
+
+  function ensureTodayTimes(){
+    var now = new Date();
+    var key = now.toDateString();
+    if(key !== todayKey){
+      todayKey = key;
+      todayTimes = computePrayerTimes(now, parseFloat(settings.lat), parseFloat(settings.lon), settings.method, parseFloat(settings.asr));
+      todayDateObjs = {};
+      PRAYER_ORDER.forEach(function(p){
+        todayDateObjs[p] = hoursToDate(now, todayTimes[p]);
+      });
+      renderPrayerGrid();
+    }
+  }
+
+  function formatTime(d){
+    var h = d.getHours(), min = d.getMinutes();
+    var ampm = h>=12 ? "م" : "ص";
+    if(settings.timeFormat === "12"){
+      var h12 = h % 12; if(h12===0) h12=12;
+      return { text: h12 + ":" + String(min).padStart(2,"0"), ampm: ampm };
+    }
+    return { text: String(h).padStart(2,"0") + ":" + String(min).padStart(2,"0"), ampm: "" };
+  }
+
+  function getNextPrayer(now){
+    for(var i=0;i<IQAMA_KEYS.length;i++){
+      var p = IQAMA_KEYS[i];
+      if(todayDateObjs[p] > now) return { name:p, time:todayDateObjs[p] };
+    }
+    var tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
+    var tTimes = computePrayerTimes(tomorrow, parseFloat(settings.lat), parseFloat(settings.lon), settings.method, parseFloat(settings.asr));
+    return { name:"Fajr", time: hoursToDate(tomorrow, tTimes.Fajr) };
+  }
+
+  function renderPrayerGrid(){
+    els.prayerGrid.innerHTML = "";
+    var now = new Date();
+    var next = getNextPrayer(now);
+    PRAYER_ORDER.forEach(function(p){
+      var card = document.createElement("div");
+      card.className = "prayer-card" + (p===next.name ? " next" : "");
+      var t = formatTime(todayDateObjs[p]);
+      var iqamaHtml = "";
+      if(IQAMA_KEYS.indexOf(p) !== -1){
+        var iqDate = new Date(todayDateObjs[p].getTime() + (settings.iqama[p]||0)*60000);
+        var it = formatTime(iqDate);
+        iqamaHtml = '<div class="iqama">إقامة ' + it.text + (it.ampm?(" "+it.ampm):"") + '</div>';
+      }
+      card.innerHTML =
+        '<div class="name">' + PRAYER_NAMES_AR[p] + '</div>' +
+        '<div class="time">' + t.text + (t.ampm ? '<span style="font-size:.5em;color:var(--gold-dim);"> '+t.ampm+'</span>' : '') + '</div>' +
+        iqamaHtml;
+      els.prayerGrid.appendChild(card);
+    });
+  }
+
+  function tick(){
+    ensureTodayTimes();
+    var now = new Date();
+
+    var t = formatTime(now);
+    els.clockTime.innerHTML = t.text.replace(":", '<span class="colon">:</span>') +
+      (t.ampm ? '<span class="ampm">'+t.ampm+'</span>' : '');
+    els.miniClock.innerHTML = t.text;
+    els.miniAmPm.textContent = t.ampm;
+
+    els.gregDate.textContent = now.toLocaleDateString("ar", { weekday:"long", year:"numeric", month:"long", day:"numeric", numberingSystem:"latn" });
+    var h = gregorianToHijri(now);
+    els.hijriDate.textContent = h.day + " " + HIJRI_MONTHS[h.month-1] + " " + h.year + " هـ";
+
+    var next = getNextPrayer(now);
+    els.nextName.textContent = PRAYER_NAMES_AR[next.name];
+    var diffMs = next.time - now;
+    var diffMin = Math.max(0, Math.round(diffMs/60000));
+    var hh = Math.floor(diffMin/60), mm = diffMin%60;
+    els.nextCountdown.textContent = "بعد " + (hh>0 ? hh+"س " : "") + mm + "د";
+
+    // refresh grid highlight once a minute
+    if(now.getSeconds()===0){ renderPrayerGrid(); }
+
+    els.mosqueName.textContent = settings.mosqueName || "المسجد";
+    els.cityLabel.textContent = settings.cityLabel || "";
+  }
+
+  /* ---------------- Slide rotation ---------------- */
+  var slideIndex = 0;
+  var slides = [els.slideClock, els.slidePrayers];
+  function showSlide(i){
+    slideIndex = i;
+    slides.forEach(function(s,idx){ s.classList.toggle("active", idx===i); });
+    els.dots.forEach(function(d,idx){ d.classList.toggle("active", idx===i); });
+  }
+  var rotateTimer = null;
+  function startRotation(){
+    if(rotateTimer) clearInterval(rotateTimer);
+    var secs = Math.max(3, parseInt(settings.interval,10) || 10);
+    rotateTimer = setInterval(function(){
+      showSlide((slideIndex+1) % slides.length);
+    }, secs*1000);
+  }
+
+  /* ---------------- Settings modal ---------------- */
+  function openModal(){
+    document.getElementById("inMosqueName").value = settings.mosqueName;
+    document.getElementById("inCityLabel").value = settings.cityLabel;
+    document.getElementById("inTimeFormat").value = settings.timeFormat;
+    document.getElementById("inInterval").value = settings.interval;
+    document.getElementById("inLat").value = settings.lat;
+    document.getElementById("inLon").value = settings.lon;
+    document.getElementById("inMethod").value = settings.method;
+    document.getElementById("inAsr").value = settings.asr;
+    document.getElementById("iqFajr").value = settings.iqama.Fajr;
+    document.getElementById("iqDhuhr").value = settings.iqama.Dhuhr;
+    document.getElementById("iqAsr").value = settings.iqama.Asr;
+    document.getElementById("iqMaghrib").value = settings.iqama.Maghrib;
+    document.getElementById("iqIsha").value = settings.iqama.Isha;
+    els.locateStatus.textContent = "";
+    els.overlay.classList.add("show");
+  }
+  function closeModal(){ els.overlay.classList.remove("show"); }
+
+  function saveModal(){
+    settings.mosqueName = document.getElementById("inMosqueName").value.trim() || "المسجد";
+    settings.cityLabel = document.getElementById("inCityLabel").value.trim();
+    settings.timeFormat = document.getElementById("inTimeFormat").value;
+    settings.interval = parseInt(document.getElementById("inInterval").value,10) || 10;
+    settings.lat = parseFloat(document.getElementById("inLat").value);
+    settings.lon = parseFloat(document.getElementById("inLon").value);
+    settings.method = document.getElementById("inMethod").value;
+    settings.asr = document.getElementById("inAsr").value;
+    settings.iqama = {
+      Fajr: parseInt(document.getElementById("iqFajr").value,10)||0,
+      Dhuhr: parseInt(document.getElementById("iqDhuhr").value,10)||0,
+      Asr: parseInt(document.getElementById("iqAsr").value,10)||0,
+      Maghrib: parseInt(document.getElementById("iqMaghrib").value,10)||0,
+      Isha: parseInt(document.getElementById("iqIsha").value,10)||0
+    };
+    saveSettings(settings);
+    todayKey = ""; // force recompute
+    ensureTodayTimes();
+    startRotation();
+    closeModal();
+  }
+
+  els.settingsBtn.addEventListener("click", openModal);
+  els.closeBtn.addEventListener("click", closeModal);
+  els.saveBtn.addEventListener("click", saveModal);
+  els.overlay.addEventListener("click", function(e){ if(e.target===els.overlay) closeModal(); });
+
+  els.locateBtn.addEventListener("click", function(){
+    if(!navigator.geolocation){
+      els.locateStatus.textContent = "خاصية تحديد الموقع غير مدعومة في هذا المتصفح.";
+      return;
+    }
+    els.locateStatus.textContent = "جارٍ تحديد الموقع...";
+    navigator.geolocation.getCurrentPosition(function(pos){
+      document.getElementById("inLat").value = pos.coords.latitude.toFixed(4);
+      document.getElementById("inLon").value = pos.coords.longitude.toFixed(4);
+      els.locateStatus.textContent = "تم تحديد الموقع.";
+    }, function(err){
+      els.locateStatus.textContent = "تعذر تحديد الموقع: " + err.message;
+    });
+  });
+
+  els.fsBtn.addEventListener("click", function(){
+    if(!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(function(){});
+    } else {
+      document.exitFullscreen();
+    }
+  });
+
+  document.querySelectorAll("#dots span").forEach(function(dot){
+    dot.style.cursor = "pointer";
+    dot.addEventListener("click", function(){ showSlide(parseInt(dot.dataset.i,10)); startRotation(); });
+  });
+
+  /* ---------------- Init ---------------- */
+  showSlide(0);
+  ensureTodayTimes();
+  tick();
+  setInterval(tick, 1000);
+  startRotation();
+})();
+</script>
+</body>
+</html>
